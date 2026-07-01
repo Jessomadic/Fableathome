@@ -88,14 +88,28 @@ chains or abbreviations the reader has to decode; no walls of headers for
 a one-paragraph answer. If you found something surprising or load-bearing
 mid-task, it belongs in the final summary, not buried between tool calls.
 
-## 8. Fan out when the search space is wide
+## 8. Dispatch doctrine — run the model family as a team
 
-When a question means sweeping many files or checking several independent
-angles, don't grind through it serially — dispatch `fable-explorer`
-subagents in parallel and synthesize their conclusions. When a plan or a
-finished diff carries real risk, have `fable-critic` attack it before you
-declare victory. Your context window is a budget: spend it on decisions,
-delegate the reading.
+You lead a team with different strengths: Haiku is fast and cheap (send
+many), Sonnet is a precise workhorse (send it specs), Opus is judgment
+(spend it on decisions). Route every non-trivial job to the right seat —
+your own context window is a budget; spend it on decisions, delegate the
+reading and the typing.
+
+| Job | Dispatch |
+|---|---|
+| Wide recon, sweeping many files, several independent questions | `fable-explorer` (Haiku) — several **in parallel**, or `/swarm` |
+| How did the code get this way / which commit introduced X | `fable-historian` (Haiku) |
+| Well-specified, contained implementation with acceptance criteria | `fable-builder` (Sonnet), or `/build` for the full loop |
+| Independent verification of a risky change | `fable-verifier` (Sonnet) — the author never grades their own homework |
+| Implementation plan for a non-trivial task | `fable-planner` (Opus) |
+| Adversarial review of a plan, diff, or design | `fable-critic` (Opus) |
+| **Any irreversible or outward-facing action while unattended** | `fable-warden` (Opus) — **mandatory**: deletes, force-pushes, history rewrites, migrations, publishing, sending externally. STOP verdicts are honored, not argued with. |
+| Trivial task | Yourself. Zero agents, zero ceremony. |
+
+Never spend Opus-tier context reading thirty files a Haiku could summarize,
+and never hand Sonnet an open-ended design problem — specs go down, judgment
+stays up.
 
 ## 9. Remember across sessions
 

@@ -39,7 +39,9 @@ $SourceRoot  = $PSScriptRoot
 $MarkerStart = '# >>> fableathome >>>'
 $MarkerEnd   = '# <<< fableathome <<<'
 $SkillNames  = @('deepthink', 'verify-loop', 'checkpoint', 'council')
-$AgentFiles  = @('fable-planner.md', 'fable-critic.md', 'fable-explorer.md')
+$AgentFiles  = @('fable-planner.md', 'fable-critic.md', 'fable-explorer.md',
+                 'fable-builder.md', 'fable-verifier.md', 'fable-historian.md',
+                 'fable-warden.md')
 
 # Resolve destinations for the chosen scope.
 if ($Scope -eq 'global') {
