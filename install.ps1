@@ -38,7 +38,8 @@ $ErrorActionPreference = 'Stop'
 $SourceRoot  = $PSScriptRoot
 $MarkerStart = '# >>> fableathome >>>'
 $MarkerEnd   = '# <<< fableathome <<<'
-$SkillNames  = @('deepthink', 'verify-loop', 'checkpoint', 'council')
+$SkillNames  = @('deepthink', 'verify-loop', 'checkpoint', 'council',
+                 'swarm', 'build', 'postmortem')
 $AgentFiles  = @('fable-planner.md', 'fable-critic.md', 'fable-explorer.md',
                  'fable-builder.md', 'fable-verifier.md', 'fable-historian.md',
                  'fable-warden.md')

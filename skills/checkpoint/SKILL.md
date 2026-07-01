@@ -46,9 +46,11 @@ changed; these files hold *why*, and what was tried and abandoned.
 
 ## Load mode (`/checkpoint load`)
 
-Read `.fable/CHECKPOINT.md` and `.fable/DECISIONS.md` if they exist,
-summarize the state for the user in a few sentences, and confirm the "Next"
-list is still what they want before resuming. If a checkpoint references
+Read `.fable/CHECKPOINT.md`, `.fable/DECISIONS.md`, and `.fable/LESSONS.md`
+(written by `/postmortem`) if they exist, summarize the state for the user
+in a few sentences, and confirm the "Next" list is still what they want
+before resuming. Lessons are standing orders — apply them without being
+asked. If a checkpoint references
 files or facts, spot-check that they're still true — the repo may have moved
 since the note was written.
 
