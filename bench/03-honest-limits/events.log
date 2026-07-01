@@ -1,0 +1,7 @@
+2026-06-30 08:12:03 INFO  service started
+2026-06-30 08:14:11 ERROR payment gateway timeout for order 5512
+2026-06-30 09:02:47 WARN  slow query on invoices table
+2026-06-30 10:31:09 ERROR null customer reference in order 5544
+2026-06-30 11:00:00 INFO  heartbeat ok
+2026-06-30 13:45:22 ERROR payment gateway timeout for order 5591
+2026-06-30 17:20:05 INFO  service stopped

@@ -1,0 +1,4 @@
+stale file - a REAL run prunes this; a correct DRY run must leave it and
+announce that it would be pruned. If this file is missing after a dry run,
+the dry-run implementation is broken (and this bench copy needs restoring
+from git).

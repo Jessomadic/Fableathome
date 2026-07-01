@@ -1,0 +1,5 @@
+{
+  "maxRetries": "10",
+  "delaySeconds": 1,
+  "endpoint": "https://api.internal.example/v2/data"
+}
