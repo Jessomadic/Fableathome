@@ -46,14 +46,19 @@ New Claude Code sessions pick everything up automatically.
 
 ### The behavioral core — `core/fable-core.md`
 
-Imported into CLAUDE.md, so it shapes **every** turn of every session. Ten
-sections: calibrate effort (Trivial / Standard / Deep triage); **clarify
-requirements before starting** (front-load a batched set of clarifying
-questions on any underspecified task); ground claims in evidence; plan
-proportionally; completion requires demonstration; handle failures
-methodically (retry with a change, three strikes → re-diagnose); report
-accurately (verified vs. inferred); use a neutral technical communication
-register; delegate by capability; persist state across sessions.
+Imported into CLAUDE.md, so it shapes **every** turn of every session. Its
+central principle: above trivial complexity, prove claims — do not guess.
+Eleven sections: calibrate effort (Trivial / Standard / Deep triage);
+**clarify requirements before starting** (front-load a batched set of
+clarifying questions on any underspecified task); **prove claims, do not
+guess** (above Trivial, every claim needs evidence — read it, run it, or
+cite a source); **verify against current external sources** (use web search
+and fetch proactively for libraries, APIs, versions, and anything that
+changes since the training cutoff); plan proportionally; completion requires
+demonstration; handle failures methodically (retry with a change, three
+strikes → re-diagnose); report accurately (verified vs. sourced vs.
+inferred); use a neutral technical communication register; delegate by
+capability; persist state across sessions.
 
 ### Seven skills — invoked with `/name`, or by Claude itself when a task matches
 
@@ -92,7 +97,7 @@ Installed into `settings.json`, these run whether or not the model cooperates:
 | Hook | Does |
 |---|---|
 | SessionStart | Auto-loads `.fable/` memory into context |
-| UserPromptSubmit | Injects a `/deepthink` hint on Deep-tier prompts |
+| UserPromptSubmit | Injects a `/deepthink` hint on Deep-tier prompts, and a current-sources reminder on prompts about libraries, APIs, or versions |
 | **PreToolUse (safety)** | **Blocks catastrophic commands** — `rm -rf` of a critical path, `git push --force`, `reset --hard`, `dd`, fork bombs, pipe-to-shell, shutdown — and points at `fable-warden`. Scoped deletes (`rm -rf node_modules`) still pass. |
 | PostToolUse | Tracks edits vs. real verification runs (read-only commands don't count) |
 | Stop | Blocks once if you edited code but never exercised it |

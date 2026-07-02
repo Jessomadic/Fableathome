@@ -27,7 +27,10 @@ the failing command, reproduce the defect, check the logs. Record two lists:
   assumptions to facts before Phase 4.
 
 For a wide search space, dispatch `fable-explorer` agents in parallel rather
-than reading sequentially.
+than reading sequentially. When the problem involves external tools,
+libraries, APIs, or versions, verify against current documentation using the
+web search and fetch tools rather than relying on training memory; treat a
+cited current source as evidence and an uncited recollection as an assumption.
 
 ## Phase 2 — Enumerate before selecting
 

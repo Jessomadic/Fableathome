@@ -48,6 +48,12 @@ Assert ($r.out -match 'MARKER-42') 'session-start loads checkpoint when present'
 Assert ($r.out -notmatch 'clarifying questions') 'session-start does not re-prompt clarify when a checkpoint exists'
 Remove-Item -Recurse -Force $proj -Confirm:$false
 
+# --- prompt-submit: current-sources reminder on external/version prompts ---
+$r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'Which version of the express library should I use and how do I configure the router API?' } | ConvertTo-Json -Compress)
+Assert ($r.out -match 'web search and fetch') 'prompt-submit prompts for current sources on a library/version prompt'
+$r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'Please rename the local variable foo to bar in this one file for me.' } | ConvertTo-Json -Compress)
+Assert ($r.out -notmatch 'web search and fetch') 'prompt-submit stays quiet on a purely local task'
+
 # --- stop-gate hardening: read-only command does NOT satisfy verification ---
 Remove-Item $statePath -Force -ErrorAction SilentlyContinue
 Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Edit'; tool_input = @{ file_path = 'D:\x\app.ps1' } } | ConvertTo-Json -Compress) | Out-Null
