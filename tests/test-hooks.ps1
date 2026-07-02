@@ -51,6 +51,10 @@ Remove-Item -Recurse -Force $proj -Confirm:$false
 # --- prompt-submit: current-sources reminder on external/version prompts ---
 $r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'Which version of the express library should I use and how do I configure the router API?' } | ConvertTo-Json -Compress)
 Assert ($r.out -match 'web search and fetch') 'prompt-submit prompts for current sources on a library/version prompt'
+$r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'Build a responsive navbar component with a dropdown using Tailwind and good accessibility.' } | ConvertTo-Json -Compress)
+Assert ($r.out -match 'web search and fetch') 'prompt-submit prompts for current sources on a UI prompt'
+$r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'How do I set up a conditional access policy in Microsoft Entra and assign it to an Intune group?' } | ConvertTo-Json -Compress)
+Assert ($r.out -match 'web search and fetch') 'prompt-submit prompts for current sources on an admin-console (Entra/Intune) prompt'
 $r = Invoke-Hook 'on-prompt-submit.ps1' (@{ prompt = 'Please rename the local variable foo to bar in this one file for me.' } | ConvertTo-Json -Compress)
 Assert ($r.out -notmatch 'web search and fetch') 'prompt-submit stays quiet on a purely local task'
 
