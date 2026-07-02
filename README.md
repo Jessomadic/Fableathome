@@ -46,14 +46,16 @@ New Claude Code sessions pick everything up automatically.
 
 ### The behavioral core — `core/fable-core.md`
 
-Imported into CLAUDE.md, so it shapes **every** turn of every session. Nine
-rules: calibrate effort before starting (Trivial / Standard / Deep triage);
-ground truth or it didn't happen; plan when it matters; done means
-demonstrated; persist with a brain (retry with a change, three strikes →
-re-diagnose); keep an honest ledger (verified vs. believed); communicate like
-a colleague; fan out when the search space is wide; remember across sessions.
+Imported into CLAUDE.md, so it shapes **every** turn of every session. Ten
+sections: calibrate effort (Trivial / Standard / Deep triage); **clarify
+requirements before starting** (front-load a batched set of clarifying
+questions on any underspecified task); ground claims in evidence; plan
+proportionally; completion requires demonstration; handle failures
+methodically (retry with a change, three strikes → re-diagnose); report
+accurately (verified vs. inferred); use a neutral technical communication
+register; delegate by capability; persist state across sessions.
 
-### Four skills — invoked with `/name`, or by Claude itself when a task matches
+### Seven skills — invoked with `/name`, or by Claude itself when a task matches
 
 | Skill | What it forces | Reach for it when |
 |---|---|---|

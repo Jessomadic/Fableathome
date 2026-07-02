@@ -1,62 +1,58 @@
 ---
 name: deepthink
-description: Structured multi-pass reasoning for Deep-tier problems — unclear root causes, cross-cutting changes, design decisions, anything where being wrong is expensive. Forces evidence-gathering, competing hypotheses, and an adversarial pass before any code is touched. Use when a task resists a first theory, when a "should work" fix didn't, or before committing to an architecture.
+description: Structured multi-pass reasoning for Deep-tier problems — unclear root causes, cross-cutting changes, design decisions, and changes that are expensive to reverse. Enforces evidence-gathering, competing hypotheses, and an adversarial pass before any code is modified. Use when a first hypothesis fails, when an expected fix does not work, or before committing to an architecture.
 ---
 
-# /deepthink — think in passes, not in a straight line
+# /deepthink — multi-pass reasoning
 
-You have been asked to reason carefully. The failure mode you are guarding
-against is **premature convergence**: latching onto the first plausible theory
-and spending the whole session confirming it. Work through these phases in
-order and show your work in the conversation.
+This procedure guards against premature convergence: committing to the first
+plausible hypothesis and spending the task confirming it. Work through the
+phases in order and record the reasoning in the conversation.
 
 ## Phase 0 — Restate and define success
 
-In two or three sentences: what is actually being asked, and what observable
-outcome means "solved"? If you cannot state the success criterion as something
-you could demonstrate, the task is underspecified — say what's missing before
-proceeding.
+In two or three sentences, state what is being asked and the observable
+condition that constitutes a solution. If the success condition cannot be
+stated as something demonstrable, the task is underspecified — identify what
+is missing before proceeding.
 
-## Phase 1 — Evidence sweep
+## Phase 1 — Gather evidence
 
-Gather ground truth before theorizing. Read the relevant code, run the failing
-command, reproduce the bug, check the logs. Then write two explicit lists:
+Establish ground truth before forming hypotheses. Read the relevant code, run
+the failing command, reproduce the defect, check the logs. Record two lists:
 
-- **Facts** — things you directly observed, each with its source (file:line,
-  command output).
-- **Assumptions** — things you believe but have not verified. Every assumption
-  is a liability; convert the load-bearing ones to facts before Phase 4.
+- **Facts** — directly observed, each with its source (file:line, command
+  output).
+- **Assumptions** — believed but not yet verified. Convert load-bearing
+  assumptions to facts before Phase 4.
 
-If the search space is wide, fan out `fable-explorer` subagents in parallel
-rather than reading serially.
+For a wide search space, dispatch `fable-explorer` agents in parallel rather
+than reading sequentially.
 
-## Phase 2 — Enumerate before you choose
+## Phase 2 — Enumerate before selecting
 
-Generate **at least three** genuinely different hypotheses (for a bug) or
-options (for a design decision). Not one real option and two strawmen — three
-you could defend. For each: what evidence supports it, what evidence would
-refute it, and what it would cost to be wrong about it. Rank them.
+Generate at least three materially different hypotheses (for a defect) or
+options (for a design decision). For each, record the supporting evidence, the
+evidence that would refute it, and the cost of being wrong. Rank them.
 
 ## Phase 3 — Adversarial pass
 
-Attack your leading candidate as if you were a skeptical colleague paid to
-find the flaw. How does it fail? What edge case, concurrency issue, or
-mistaken assumption breaks it? What does it not explain that a rival
-hypothesis does? If the leader survives, proceed. If it wobbles, return to
-Phase 2 with what you learned. For high-stakes decisions, delegate this pass
-to a `fable-critic` subagent so the attack isn't graded by its author.
+Attempt to refute the leading candidate. Identify the edge case, concurrency
+condition, or incorrect assumption that would break it, and what it fails to
+explain that a competing hypothesis explains. If it survives, proceed; if not,
+return to Phase 2 with the new information. For high-impact decisions, delegate
+this pass to a `fable-critic` agent so the review is independent of its author.
 
 ## Phase 4 — Converge and plan
 
-Commit to the winner. Write a short plan: steps, files, order, and **tripwires**
-— explicit statements of the form "this plan assumes X; if X turns out false,
-stop and return to Phase 2." Tripwires are what stop you from pushing a dead
-theory uphill.
+Select the surviving candidate. Record a short plan: steps, files, order, and
+tripwires — explicit conditions of the form "this plan assumes X; if X is
+false, stop and return to Phase 2." Tripwires prevent continued execution of a
+disproven hypothesis.
 
-## Phase 5 — Execute with the tripwires armed
+## Phase 5 — Execute against the tripwires
 
-Carry out the plan. When a tripwire fires, honor it — re-diagnose instead of
-patching around the surprise. Finish by verifying against the Phase 0 success
-criterion (use `/verify-loop` if the change is non-trivial), and report which
-hypotheses were considered and why the winner won, so the reasoning is
-auditable.
+Carry out the plan. When a tripwire condition occurs, re-diagnose rather than
+working around it. Validate the result against the Phase 0 success condition
+(use `/verify-loop` for non-trivial changes), and report which hypotheses were
+considered and why the selected one was chosen.

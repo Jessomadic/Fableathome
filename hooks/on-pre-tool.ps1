@@ -16,14 +16,14 @@ try {
     $danger = Get-FableDangerVerdict -Command $cmd
     if ($null -eq $danger) { exit 0 }
 
-    $reason = "Fable safety gate BLOCKED this command - category: $($danger.Category). " +
-              "$($danger.Detail) You may be running unattended, and this action cannot be cheaply undone. " +
-              "Do not retry it as-is. Instead: (1) consult the fable-warden subagent to review the blast " +
-              "radius, recovery path, and whether the evidence supports this exact action; (2) prefer a " +
-              "reversible alternative (git stash instead of reset --hard, --force-with-lease instead of " +
-              "--force, back up or soft-delete before removing, a scoped path instead of a broad one). " +
-              "If this action is genuinely required, safe, and authorized, ask the user to run it directly, " +
-              "or they can temporarily disable the fable PreToolUse hook in settings.json."
+    $reason = "Fable safety gate blocked this command - category: $($danger.Category). " +
+              "$($danger.Detail) The action cannot be cheaply reversed and the session may be unattended. " +
+              "Do not retry it unchanged. Instead: (1) consult the fable-warden subagent to review the blast " +
+              "radius, recovery path, and whether the evidence supports this specific action; (2) use a " +
+              "reversible alternative (git stash rather than reset --hard, --force-with-lease rather than " +
+              "--force, back up or soft-delete before removing, a scoped path rather than a broad one). " +
+              "If the action is required, safe, and authorized, ask the user to run it directly, or the user " +
+              "can temporarily disable the fable PreToolUse hook in settings.json."
 
     @{
         hookSpecificOutput = @{

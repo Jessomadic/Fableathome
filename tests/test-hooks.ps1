@@ -36,6 +36,18 @@ Assert ([string]::IsNullOrWhiteSpace($r.out)) 'pre-tool allows rm -rf node_modul
 $r = Invoke-Hook 'on-pre-tool.ps1' (@{ tool_name = 'Edit'; tool_input = @{ file_path = 'x.ps1' } } | ConvertTo-Json -Compress)
 Assert ([string]::IsNullOrWhiteSpace($r.out)) 'pre-tool ignores non-Bash tools'
 
+# --- SessionStart: clarify-at-start on a fresh project, memory load otherwise ---
+$proj = Join-Path $env:TEMP "fableproj-$sid"
+New-Item -ItemType Directory -Force $proj | Out-Null
+$r = Invoke-Hook 'on-session-start.ps1' (@{ session_id = $sid; cwd = $proj } | ConvertTo-Json -Compress)
+Assert ($r.out -match 'clarifying questions') 'session-start prompts for clarifying questions on a new project'
+New-Item -ItemType Directory -Force (Join-Path $proj '.fable') | Out-Null
+Set-Content (Join-Path $proj '.fable\CHECKPOINT.md') "# Checkpoint`nGoal: MARKER-42" -Encoding utf8
+$r = Invoke-Hook 'on-session-start.ps1' (@{ session_id = $sid; cwd = $proj } | ConvertTo-Json -Compress)
+Assert ($r.out -match 'MARKER-42') 'session-start loads checkpoint when present'
+Assert ($r.out -notmatch 'clarifying questions') 'session-start does not re-prompt clarify when a checkpoint exists'
+Remove-Item -Recurse -Force $proj -Confirm:$false
+
 # --- stop-gate hardening: read-only command does NOT satisfy verification ---
 Remove-Item $statePath -Force -ErrorAction SilentlyContinue
 Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Edit'; tool_input = @{ file_path = 'D:\x\app.ps1' } } | ConvertTo-Json -Compress) | Out-Null

@@ -1,56 +1,53 @@
 ---
 name: swarm
-description: Haiku fan-out reconnaissance. Use PROACTIVELY whenever answering a question means sweeping many files, checking several independent angles, or mapping unfamiliar territory — decomposes the question, dispatches parallel fable-explorer scouts, and synthesizes one cited answer. Reach for this instead of reading file after file yourself; five scouts cost less than one senior context window.
+description: Parallel reconnaissance using low-cost agents. Use PROACTIVELY when answering a question requires reading many files, checking several independent angles, or mapping unfamiliar code — decomposes the question, dispatches parallel fable-explorer agents, and synthesizes one cited answer. Use this instead of reading files sequentially when the search space is wide.
 ---
 
-# /swarm — many cheap eyes, one synthesis
+# /swarm — parallel reconnaissance
 
-You have a wide question and a team of fast, inexpensive scouts. The craft
-is in the decomposition and the synthesis; the scouts do the legwork.
+Use this when a question has a wide search space and can be decomposed into
+independent parts. The work is in the decomposition and synthesis; the agents
+perform the retrieval.
 
 ## Step 1 — Decompose
 
-Break the question into **3–8 independent sub-questions**. Independent means
-a scout can answer it without seeing any other scout's answer. Good axes to
-split on: by directory or module, by layer (config vs code vs tests), by
-concern (where is X defined / who calls X / what tests cover X), by naming
-variant. If two sub-questions would make the same scout read the same files,
-merge them.
+Divide the question into three to eight independent sub-questions. Independent
+means an agent can answer one without any other agent's result. Useful axes:
+by directory or module, by layer (config, code, tests), by concern (where X is
+defined, what calls X, what tests cover X), or by naming variant. If two
+sub-questions would require the same agent to read the same files, merge them.
 
-Each sub-question gets a brief a stranger could execute: the question, where
-to start looking, and what a complete answer includes (paths required).
+Each sub-question gets a self-contained brief: the question, where to begin,
+and what a complete answer includes (required paths).
 
-## Step 2 — Dispatch in ONE message
+## Step 2 — Dispatch in a single message
 
-Launch all scouts as `fable-explorer` agents **in a single message with
-parallel Agent calls** — never serially. Serial dispatch throws away the
-entire point of the swarm.
+Dispatch all agents as `fable-explorer` calls in one message, in parallel.
+Sequential dispatch removes the benefit of the procedure.
 
-## Step 3 — Synthesize like an editor, not a stapler
+## Step 3 — Synthesize
 
 When the reports return:
 
-- **Reconcile before you combine.** Where two scouts' facts conflict, or one
-  scout's absence-claim ("there is no X") collides with another's sighting,
-  re-check that specific point yourself, directly — a disputed fact is never
-  resolved by majority vote or by averaging.
-- **Discount hedges.** A scout's "probably" or unlabeled inference is a lead,
-  not a fact; either verify it or report it as unconfirmed.
-- **Keep the citations.** Every claim in your synthesis carries the path (and
-  line where useful) that a scout — or your re-check — provided.
+- Reconcile before combining. Where two agents' facts conflict, or one agent's
+  absence claim ("there is no X") conflicts with another's finding, re-check
+  that point directly. A disputed fact is not resolved by majority.
+- Discount hedged claims. An agent's "probably" or unlabeled inference is a
+  lead, not a fact; verify it or report it as unconfirmed.
+- Preserve citations. Every claim in the synthesis carries the path (and line
+  where relevant) from an agent or from the re-check.
 
 ## Step 4 — Report
 
-One coherent answer to the original question, leading with the conclusion.
-Then the supporting map (key facts with paths), then an honest gaps line:
-what no scout checked, and whether it could change the answer. Do not paste
-the raw scout reports.
+One answer to the original question, outcome first, followed by the supporting
+detail with paths, followed by a statement of gaps: what no agent checked and
+whether it could change the answer. Do not include the raw agent reports.
 
-## Anti-patterns
+## Constraints
 
-- Two scouts is not a swarm decomposition problem — just dispatch them, or
-  read it yourself if it's one file.
-- Dependent chains ("scout B needs scout A's answer") mean your decomposition
-  is wrong; re-split along an independent axis.
-- Sending scouts to answer judgment questions ("is this design good?") —
-  scouts report facts; judgment stays with you.
+- Two sub-questions do not require decomposition; dispatch them directly or
+  read the file.
+- A dependent chain (agent B needs agent A's result) indicates incorrect
+  decomposition; re-divide along an independent axis.
+- Agents report facts; judgment questions ("is this design sound?") are not
+  delegated to them.

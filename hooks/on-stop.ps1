@@ -21,10 +21,10 @@ try {
     $state.blocked_once = $true
     Write-FableState -SessionId $evt.session_id -State $state
 
-    $reason = 'Fable verification gate: you edited code files this session but ran nothing afterward. ' +
+    $reason = 'Fable verification gate: code files were modified this session but nothing was run afterward. ' +
               'Before stopping, either (a) exercise the changed behavior end-to-end (/verify-loop: run the code, ' +
-              'the tests, the real flow) and report the evidence, or (b) explicitly tell the user the change is ' +
-              'UNVERIFIED and why verification was not possible. Then you may stop.'
+              'the tests, the real execution path) and report the evidence, or (b) state to the user that the ' +
+              'change is UNVERIFIED and why verification was not possible. Then stopping is permitted.'
     @{ decision = 'block'; reason = $reason } | ConvertTo-Json -Compress | Write-Output
     exit 0
 } catch {

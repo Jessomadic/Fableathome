@@ -16,7 +16,7 @@ try {
                    'should (we|i) use|trade-?offs?)\b'
 
     if ($p -match $deepSignals) {
-        Write-Output 'Fable triage hint: this prompt has Deep-tier signals (root-cause / design / cross-cutting work). Engage /deepthink before editing anything; for decisions with real trade-offs consider /council.'
+        Write-Output 'Fable Protocol: this prompt contains Deep-tier signals (root-cause, design, or cross-cutting work). Resolve any unstated requirements with the user first, then run /deepthink before modifying code; for decisions with material trade-offs, use /council.'
     }
     exit 0
 } catch {

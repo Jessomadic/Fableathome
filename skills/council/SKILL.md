@@ -1,54 +1,52 @@
 ---
 name: council
-description: Parallel multi-agent deliberation for weighty decisions — architecture choices, risky refactors, build-vs-buy, anything with real trade-offs where one perspective isn't enough. Convenes planner, critic, and explorer subagents in parallel on the same brief, then synthesizes a recommendation with the dissent preserved. Use when the cost of choosing wrong exceeds the cost of ten minutes of deliberation.
+description: Parallel multi-agent deliberation for decisions with material trade-offs — architecture choices, risky refactors, build-versus-buy, and similar. Runs planner, critic, and explorer subagents in parallel on the same brief, then synthesizes a recommendation that preserves the dissent. Use when the cost of an incorrect decision exceeds the cost of the deliberation.
 ---
 
-# /council — three perspectives, one recommendation
+# /council — parallel deliberation
 
-One mind confirming its own first idea is how bad architectures happen. This
-skill buys independent perspectives cheaply: three subagents, one brief, no
-peeking at each other's answers.
+A single perspective confirming its own initial position is a common source of
+poor decisions. This procedure obtains independent perspectives: three
+subagents, one brief, no shared intermediate results.
 
 ## Step 1 — Write the brief
 
-One brief, given verbatim to every member. It must contain: the decision to
-be made, the constraints you know (deadlines, team, tech already in place),
-what "good" looks like, and the candidate options if any are already on the
-table. A vague brief produces three vague opinions — spend the minute.
+Write one brief, provided verbatim to every member. It must state the decision
+to be made, the known constraints (deadlines, team, existing technology), the
+definition of a good outcome, and any candidate options already under
+consideration.
 
-## Step 2 — Convene in parallel
+## Step 2 — Dispatch in parallel
 
-Dispatch all three in a **single message** (parallel Agent calls), each with
-the brief plus its role framing:
+Dispatch all three in a single message (parallel Agent calls), each with the
+brief and its role:
 
-- **fable-explorer** — "Establish the facts on the ground relevant to this
-  decision: what does the codebase actually do today, what constraints does
-  it impose, what prior art exists in the repo?" Facts only, no opinion.
-- **fable-planner** — "Design the best implementation approach for this
-  decision. Commit to a recommendation and make the strongest case for it."
-- **fable-critic** — "Assume the obvious/leading approach is chosen. Attack
-  it: failure modes, hidden costs, what breaks in a year. Then say what you'd
-  do instead."
+- **fable-explorer** — establish the relevant facts: what the codebase does
+  now, the constraints it imposes, and any prior art in the repository. Facts
+  only.
+- **fable-planner** — design the best implementation approach and make the
+  case for a specific recommendation.
+- **fable-critic** — assume the leading approach is selected and identify its
+  failure modes, hidden costs, and long-term consequences, then state the
+  preferred alternative.
 
-## Step 3 — Synthesize honestly
+## Step 3 — Synthesize
 
 When the reports return:
 
-1. **Reconcile facts first.** If the explorer's findings contradict an
-   assumption the planner or critic relied on, that member's conclusion is
-   discounted — flag it rather than averaging it in.
-2. **Map agreement and dissent.** Where planner and critic agree, confidence
-   is high. Where they clash, the clash *is* the finding — name the crux
-   (usually one disputed assumption or one differently-weighted risk).
-3. **Decide.** Give one recommendation with your reasoning, then state the
-   strongest surviving counterargument in its best form — not a strawman.
-   If the crux depends on something only the user knows (risk tolerance,
-   roadmap, budget), present both sides and ask, using the crux as the
-   question.
+1. Reconcile facts first. If the explorer's findings contradict an assumption
+   the planner or critic relied on, discount that conclusion and note it.
+2. Map agreement and disagreement. Where planner and critic agree, confidence
+   is high. Where they disagree, the disagreement is the finding — identify
+   the specific point of contention (usually one disputed assumption or one
+   differently-weighted risk).
+3. Decide. Provide one recommendation with its reasoning, then state the
+   strongest opposing argument in its strongest form. If the decision depends
+   on information only the user has (risk tolerance, roadmap, budget), present
+   both sides and ask, using the point of contention as the question.
 
-## Output shape
+## Output
 
-A short synthesis: **Recommendation** (one paragraph), **Why** (the decisive
-factors), **Strongest objection** (from the critic, unweakened), **What would
-change the answer** (the tripwire facts). Do not paste the three raw reports —
-the user hired a council, not a stack of transcripts.
+A short synthesis: recommendation (one paragraph), reasoning (the decisive
+factors), strongest objection (from the critic, unweakened), and the facts
+that would change the recommendation. Do not include the three raw reports.
