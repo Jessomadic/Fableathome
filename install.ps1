@@ -44,7 +44,7 @@ $AgentFiles  = @('fable-planner.md', 'fable-critic.md', 'fable-explorer.md',
                  'fable-builder.md', 'fable-verifier.md', 'fable-historian.md',
                  'fable-warden.md')
 $HookScripts = @('fable-common.ps1', 'on-session-start.ps1', 'on-prompt-submit.ps1',
-                 'on-post-tool.ps1', 'on-stop.ps1', 'on-pre-compact.ps1')
+                 'on-pre-tool.ps1', 'on-post-tool.ps1', 'on-stop.ps1', 'on-pre-compact.ps1')
 
 # Resolve destinations for the chosen scope.
 if ($Scope -eq 'global') {
@@ -92,6 +92,7 @@ function Get-FableHookWiring {
     return @(
         [pscustomobject]@{ Event = 'SessionStart';     Group = [pscustomobject]@{ hooks = @(New-FableHookDef 'on-session-start.ps1' 15) } }
         [pscustomobject]@{ Event = 'UserPromptSubmit'; Group = [pscustomobject]@{ hooks = @(New-FableHookDef 'on-prompt-submit.ps1' 10) } }
+        [pscustomobject]@{ Event = 'PreToolUse';       Group = [pscustomobject]@{ matcher = 'Bash'; hooks = @(New-FableHookDef 'on-pre-tool.ps1' 10) } }
         [pscustomobject]@{ Event = 'PostToolUse';      Group = [pscustomobject]@{ matcher = 'Edit|Write|NotebookEdit|Bash'; hooks = @(New-FableHookDef 'on-post-tool.ps1' 10) } }
         [pscustomobject]@{ Event = 'Stop';             Group = [pscustomobject]@{ hooks = @(New-FableHookDef 'on-stop.ps1' 10) } }
         [pscustomobject]@{ Event = 'PreCompact';       Group = [pscustomobject]@{ hooks = @(New-FableHookDef 'on-pre-compact.ps1' 10) } }
@@ -260,7 +261,7 @@ $settings = Read-Settings
 $settings = Remove-FableHooksFromSettings -Settings $settings
 $settings = Add-FableHooksToSettings -Settings $settings
 Save-Settings -Settings $settings
-Write-Host "  wired   settings.json (SessionStart, UserPromptSubmit, PostToolUse, Stop, PreCompact)"
+Write-Host "  wired   settings.json (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, PreCompact)"
 
 # 5. Wire the core into CLAUDE.md (idempotent: replace our block if present).
 Remove-MarkerBlock -Path $ClaudeMdPath

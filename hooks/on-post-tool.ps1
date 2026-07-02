@@ -11,7 +11,13 @@ try {
     }
 
     if ($evt.tool_name -eq 'Bash') {
-        $state.last_bash = Get-UnixNow
+        # A purely read-only inspection command (ls, git status, ...) does not
+        # count as verification, so it can't be used to silence the stop-gate.
+        $cmd = ''
+        if ($evt.tool_input -and $evt.tool_input.command) { $cmd = [string]$evt.tool_input.command }
+        if (-not (Test-FableTrivialCommand $cmd)) {
+            $state.last_bash = Get-UnixNow
+        }
     } else {
         # Edit / Write / NotebookEdit. Skip files with no runtime surface:
         # docs, plain text, and the harness's own memory/config trees.
