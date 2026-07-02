@@ -207,12 +207,18 @@ async function runBestOf(n: number): Promise<void> {
 
   const base = mkdtempSync(join(tmpdir(), "fable-bestof-"));
   const attempts: { dir: string; report: string; diff: string }[] = [];
+  // Track worktrees the moment each is created, so cleanup runs even if a
+  // session throws before `attempts` is populated (e.g. hitting a rate limit).
+  const created: string[] = [];
   let totalCost = 0;
 
   try {
     console.log(`\n=== best-of ${n}: dispatching parallel attempts (${flags.model}) ===`);
     const dirs = Array.from({ length: n }, (_, i) => join(base, `attempt-${i + 1}`));
-    for (const d of dirs) git(["worktree", "add", "--detach", d, "HEAD"]);
+    for (const d of dirs) {
+      git(["worktree", "add", "--detach", d, "HEAD"]);
+      created.push(d);
+    }
 
     const results = await Promise.all(
       dirs.map((d) => runSession(task + EXECUTOR_CONTRACT, { model: flags.model!, cwd: d })),
@@ -260,12 +266,18 @@ Respond with ONLY a fenced json block: \`\`\`json
     console.log(`\nTotal cost: $${totalCost.toFixed(4)}`);
     console.log(`\nWinning report:\n${winner.report}`);
   } finally {
-    for (const a of attempts) {
+    for (const d of created) {
       try {
-        git(["worktree", "remove", "--force", a.dir]);
+        git(["worktree", "remove", "--force", d]);
       } catch {
         /* best effort */
       }
+    }
+    // Drop any worktree registrations left dangling by a failed remove.
+    try {
+      git(["worktree", "prune"]);
+    } catch {
+      /* best effort */
     }
     rmSync(base, { recursive: true, force: true });
   }

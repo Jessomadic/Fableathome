@@ -88,5 +88,23 @@ Assert-Safe 'cat README.md'
 Assert-Safe 'invoke-pester'
 
 Write-Host ''
+Write-Host '--- must ALLOW (dangerous pattern only inside a quote or a different subcommand) ---'
+Assert-Safe 'git commit -m "document how to git push --force safely"'
+Assert-Safe 'echo "to reset run git reset --hard" > NOTES.md'
+Assert-Safe 'git commit -m "clean up /etc config loader" && rm -rf node_modules'
+Assert-Safe 'echo "never run rm -rf /" >> README.md'
+Assert-Safe 'cp -rf template.txt /etc-local/x && rm -rf build'
+Assert-Safe 'grep -rf patterns.txt ./src'
+Assert-Safe 'git log --grep "reset --hard"'
+
+Write-Host ''
+Write-Host '--- must still BLOCK (real danger, incl. previously-missed targets) ---'
+Assert-Danger 'ls && rm -rf /'
+Assert-Danger 'npm run build; rm -rf ~'
+Assert-Danger 'Remove-Item -Recurse -Force $env:USERPROFILE\Documents'
+Assert-Danger 'rm -rf C:/Windows'
+Assert-Danger 'echo hi > /dev/sda'
+
+Write-Host ''
 if ($fails -eq 0) { Write-Host 'DANGER-VERDICT: ALL PASSED' -ForegroundColor Green }
 else { Write-Host "DANGER-VERDICT: $fails FAILED" -ForegroundColor Red; exit 1 }
