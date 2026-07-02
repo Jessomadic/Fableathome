@@ -4,8 +4,10 @@
 
 A drop-in harness for [Claude Code](https://claude.com/claude-code) that gives
 Claude Opus (or any Claude model) as much of a frontier model's effective
-capability as scaffolding can provide: enforced discipline around calibration,
-grounding, verification, persistence, and memory.
+capability as scaffolding can provide: enforced discipline around requirement
+clarification, effort calibration, evidence-based grounding, verification
+against current sources, demonstrated completion, safety, persistence, and
+cross-session memory.
 
 ## The honest pitch
 
@@ -13,16 +15,21 @@ No harness changes model weights — nothing here turns Opus into Fable at the
 level of raw intelligence. But a large share of what makes a stronger model
 *feel* stronger is behavior, not knowledge:
 
+- it asks clarifying questions up front instead of guessing at requirements;
 - it sizes up a task before diving in, and thinks hard only when it should;
 - it reads the code instead of guessing from file names;
-- it considers competing hypotheses instead of marrying the first one;
+- it proves claims with evidence rather than asserting them from memory;
+- it checks current documentation instead of trusting a stale training cutoff;
 - it proves changes work by running them, and reports honestly when it can't;
 - it retries failures intelligently and never quietly drops a subtask;
 - it remembers what happened last session.
 
-All of that is enforceable with prompts, skills, and subagents — and enforcing
-it measurably improves any model running underneath. That is what this repo
-does.
+All of that is enforceable with prompts, skills, subagents, and hooks. The
+enforcement layers change behavior you can watch happen — the orchestrator's
+judge re-runs the tests before accepting a result, the safety gate blocks
+catastrophic commands, the session refuses to stop on unverified edits.
+Benchmarking of the passive layer alone is still preliminary and honest about
+its limits (see `bench/results.md`). That is what this repo does.
 
 ## Install
 
@@ -53,8 +60,10 @@ Eleven sections: calibrate effort (Trivial / Standard / Deep triage);
 clarifying questions on any underspecified task); **prove claims, do not
 guess** (above Trivial, every claim needs evidence — read it, run it, or
 cite a source); **verify against current external sources** (use web search
-and fetch proactively for libraries, APIs, versions, and anything that
-changes since the training cutoff); plan proportionally; completion requires
+and fetch proactively for libraries, APIs, versions, UI frameworks, and
+admin consoles such as Entra, Intune, and Google Workspace — anything that
+changes since the training cutoff or gets rebranded); plan proportionally;
+completion requires
 demonstration; handle failures methodically (retry with a change, three
 strikes → re-diagnose); report accurately (verified vs. sourced vs.
 inferred); use a neutral technical communication register; delegate by
@@ -97,8 +106,8 @@ Installed into `settings.json`, these run whether or not the model cooperates:
 | Hook | Does |
 |---|---|
 | SessionStart | Auto-loads `.fable/` memory into context |
-| UserPromptSubmit | Injects a `/deepthink` hint on Deep-tier prompts, and a current-sources reminder on prompts about libraries, APIs, or versions |
-| **PreToolUse (safety)** | **Blocks catastrophic commands** — `rm -rf` of a critical path, `git push --force`, `reset --hard`, `dd`, fork bombs, pipe-to-shell, shutdown — and points at `fable-warden`. Scoped deletes (`rm -rf node_modules`) still pass. |
+| UserPromptSubmit | Injects a `/deepthink` hint on Deep-tier prompts, and a current-sources reminder on prompts about libraries, APIs, versions, UI frameworks, or admin consoles (Entra, Intune, Google Workspace, …) |
+| **PreToolUse (safety)** | **Blocks catastrophic commands** — `rm -rf` of a critical path, `git push --force`, `reset --hard`, `dd`, fork bombs, pipe-to-shell, shutdown — and points at `fable-warden`. Segment-scoped, so scoped deletes (`rm -rf node_modules`) and dangerous patterns quoted inside a commit message or unrelated subcommand still pass. |
 | PostToolUse | Tracks edits vs. real verification runs (read-only commands don't count) |
 | Stop | Blocks once if you edited code but never exercised it |
 | PreCompact | Preserves goal/decisions/gotchas through compaction |
