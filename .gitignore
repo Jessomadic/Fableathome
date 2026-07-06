@@ -1,1 +1,8 @@
-﻿orchestrator/node_modules/
+orchestrator/node_modules/
+
+# Claude Code local, machine-specific state (never shared)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Fable runtime memory + orchestrator run logs (per-project, not source)
+.fable/runs/

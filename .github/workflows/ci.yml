@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  powershell-tests:
+    name: PowerShell test suite (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Explicit powershell.exe -File mirrors the local invocation exactly: the
+      # hooks and installer target Windows PowerShell 5.1, and Run-Tests.ps1
+      # exits non-zero on any failed assertion.
+      - name: Run tests
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/Run-Tests.ps1
+
+  orchestrator-typecheck:
+    name: Orchestrator typecheck
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: orchestrator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck

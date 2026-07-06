@@ -69,18 +69,22 @@ strikes → re-diagnose); report accurately (verified vs. sourced vs.
 inferred); use a neutral technical communication register; delegate by
 capability; persist state across sessions.
 
-### Seven skills — invoked with `/name`, or by Claude itself when a task matches
+### Eleven skills — invoked with `/name`, or by Claude itself when a task matches
 
 | Skill | What it forces | Reach for it when |
 |---|---|---|
 | `/deepthink` | Evidence sweep → ≥3 competing hypotheses → adversarial pass → plan with tripwires | Root cause unclear, design decision, a "should work" fix that didn't |
 | `/verify-loop` | Proof criteria defined *first*, then an exercise-fix-repeat loop over a verification matrix | Before declaring any non-trivial change done |
+| `/debug` | Reproduce deterministically → localize by input/state/history bisect → fix the root → verify | A bug whose cause you don't yet know; a regression |
+| `/refactor` | Pin current behavior first → change structure only → prove equivalence | Renames, extractions, dedup — anything meant to preserve behavior |
+| `/test` | Tests shown to fail before they pass (red→green); an unrun test is unverified | Adding tests or a regression guard for a fix |
+| `/security-review` | Trust-boundary audit (authz, injection, secrets, SSRF) → ranked file:line findings | Before shipping code handling untrusted input, auth, or credentials |
 | `/checkpoint` | Session state saved to `.fable/` in the project; `/checkpoint load` restores it | Milestones, end of long sessions, before context compaction |
 | `/council` | Planner, critic, and explorer subagents deliberate in parallel; synthesis preserves dissent | Decisions where being wrong is expensive |
 
-Three more skills exploit the model-routed team below: `/swarm` (Haiku
-fan-out recon), `/build` (Opus spec → Sonnet build → Opus critique), and
-`/postmortem` (wrong turns become permanent lessons in `.fable/LESSONS.md`).
+Three more exploit the model-routed team below: `/swarm` (Haiku fan-out recon),
+`/build` (Opus spec → Sonnet build → Opus critique), and `/postmortem` (wrong
+turns become permanent lessons in `.fable/LESSONS.md`).
 
 ### Seven subagents, routed across the model family
 

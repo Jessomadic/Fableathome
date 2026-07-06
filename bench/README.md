@@ -1,6 +1,6 @@
 # The Fableathome bench — measure, don't vibe
 
-Five self-contained tasks, each probing one specific claim the harness
+Six self-contained tasks, each probing one specific claim the harness
 makes. Run them A/B — same task, same model, harness off vs on — and score
 against the rubric in each task's `expected.md`. If the harness doesn't
 move these numbers, it isn't working; fix it or delete the feature.
