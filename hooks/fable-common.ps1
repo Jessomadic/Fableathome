@@ -65,14 +65,20 @@ function Test-FableCatastrophicPath {
     # An unquoted variable used as a path: empty expansion turns "$X/" into "/".
     if ($t -match '^\$\{?\w+\}?(/|$)') { return $true }
     if ($t -match '^%\w+%(\\|$)') { return $true }
-    # Unix root and system directories.
-    if ($lower -match '^/(etc|usr|var|bin|sbin|lib|lib64|sys|proc|boot|root|home|opt|dev|srv|run|system|applications|library)(/|$)') { return $true }
+    # Unix root and system directories (catastrophic at any depth).
+    if ($lower -match '^/(etc|usr|var|bin|sbin|lib|lib64|sys|proc|boot|root|opt|dev|srv|run|system|applications|library)(/|$)') { return $true }
+    # /home itself and a bare user home (/home/<user>) are catastrophic; deeper
+    # paths (/home/<user>/project) are a user's own files and must be allowed.
+    if ($lower -match '^/home(/[^/]+)?/?$') { return $true }
     if ($lower -eq '/' -or $lower -match '^/\s*$') { return $true }
     # Home-relative expansions.
     if ($t -match '^~($|/)') { return $true }
     # Windows drive roots and system directories (either slash), plus UNC.
     if ($lower -match '^[a-z]:[\\/]?$') { return $true }
-    if ($lower -match '^[a-z]:[\\/](windows|users|program files|program files \(x86\)|programdata|system32)([\\/]|$)') { return $true }
+    if ($lower -match '^[a-z]:[\\/](windows|program files|program files \(x86\)|programdata|system32)([\\/]|$)') { return $true }
+    # C:\Users itself and a bare profile (C:\Users\<name>) are catastrophic;
+    # deeper paths (C:\Users\<name>\project) are the user's own files -> allow.
+    if ($lower -match '^[a-z]:[\\/]users([\\/][^\\/]+)?[\\/]?$') { return $true }
     if ($t -match '^\\\\') { return $true }
     return $false
 }
@@ -127,8 +133,16 @@ function Get-FableDangerVerdict {
         return [pscustomobject]@{ Category = 'fork bomb'; Detail = 'This pattern spawns processes until the machine is unusable.' }
     }
 
-    # Per-segment, command-anchored checks.
-    foreach ($seg in ($c -split '[;&|]+')) {
+    # Per-segment, command-anchored checks. Normalize command-substitution and
+    # subshell boundaries -- $( ), < ( ), backticks, and plain parens -- plus
+    # newlines into separators BEFORE splitting, so an inner command hidden in a
+    # substitution or on a second line ("echo $(rm -rf /)", "echo hi\nrm -rf /")
+    # is isolated as its own segment and reaches the verb+target check. This can
+    # only expose more inner commands; a token still has to be a genuine
+    # recursive delete of a catastrophic target to block, so it adds no false
+    # positives.
+    $normalized = $c -replace '[`()]', ';'
+    foreach ($seg in ($normalized -split '[\r\n;&|]+')) {
         $s = $seg.Trim()
         if ($s -eq '') { continue }
         $s = ($s -replace '(?i)^sudo\s+', '').Trim()
@@ -136,6 +150,22 @@ function Get-FableDangerVerdict {
 
         if (Test-FableDeleteSegment $s) {
             return [pscustomobject]@{ Category = 'recursive delete of a critical path'; Detail = 'Recursively deleting root, home, the current directory, a system path, or an unquoted variable target destroys data with no recovery.' }
+        }
+        # Other irreversible bulk-deletion / destruction verbs.
+        if ($s -match '(?i)^find\b.*\s-delete\b') {
+            return [pscustomobject]@{ Category = 'find -delete'; Detail = 'find -delete removes every matched file with no recovery; a broad match can wipe a tree.' }
+        }
+        if ($s -match '(?i)^find\b.*-exec\s+(sudo\s+)?rm\b') {
+            return [pscustomobject]@{ Category = 'find -exec rm'; Detail = 'find -exec rm deletes every matched file irreversibly; a broad match can wipe a tree.' }
+        }
+        if ($s -match '(?i)^xargs\b.*\brm\b.*-[a-z]*[rf]') {
+            return [pscustomobject]@{ Category = 'xargs rm'; Detail = 'Piping a file list into rm -rf deletes everything the upstream command produced, with no recovery.' }
+        }
+        if ($s -match '(?i)^shred\b') {
+            return [pscustomobject]@{ Category = 'shred'; Detail = 'shred overwrites a file so it cannot be recovered.' }
+        }
+        if ($s -match '(?i)^truncate\b.*-s\s*0\b') {
+            return [pscustomobject]@{ Category = 'truncate to zero'; Detail = 'truncate -s 0 discards a file''s entire contents in place.' }
         }
         if ($s -match '(?i)^git\s+push\b' -and ($s -match '(?i)--force(?!-with-lease)' -or $s -match '(?i)(\s|^)-f(\s|$)')) {
             return [pscustomobject]@{ Category = 'git force-push'; Detail = 'A force-push can overwrite remote history and other people''s work irreversibly. Prefer --force-with-lease.' }

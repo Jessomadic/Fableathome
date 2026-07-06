@@ -106,5 +106,31 @@ Assert-Danger 'rm -rf C:/Windows'
 Assert-Danger 'echo hi > /dev/sda'
 
 Write-Host ''
+Write-Host '--- must BLOCK (newline / command-substitution bypass) ---'
+Assert-Danger "echo hi`nrm -rf /"
+Assert-Danger "ls`n`nrm -rf ~"
+Assert-Danger 'echo $(rm -rf /)'
+Assert-Danger 'x=$(rm -rf ~)'
+Assert-Danger 'echo `rm -rf /`'
+Assert-Danger 'time (rm -rf /)'
+
+Write-Host ''
+Write-Host '--- must BLOCK (other irreversible verbs) ---'
+Assert-Danger 'find . -delete'
+Assert-Danger 'find / -name "*.log" -delete'
+Assert-Danger 'find . -type f -exec rm {} \;'
+Assert-Danger 'find . -type f | xargs rm -rf'
+Assert-Danger 'shred -u secret.key'
+Assert-Danger 'truncate -s 0 /var/log/syslog'
+
+Write-Host ''
+Write-Host '--- must ALLOW (legitimate deletes under the user profile / home) ---'
+Assert-Safe 'Remove-Item -Recurse -Force C:\Users\me\proj\node_modules'
+Assert-Safe 'rm -rf /home/me/app/build'
+Assert-Safe 'rm -rf C:\Users\jesse\repo\.next\cache'
+Assert-Safe 'find . -name "*.tmp"'
+Assert-Safe 'ls | xargs grep TODO'
+
+Write-Host ''
 if ($fails -eq 0) { Write-Host 'DANGER-VERDICT: ALL PASSED' -ForegroundColor Green }
 else { Write-Host "DANGER-VERDICT: $fails FAILED" -ForegroundColor Red; exit 1 }
