@@ -6,6 +6,8 @@
   "description": "Programmatic run/judge/retry orchestration for Claude Code sessions - the control flow prompts cannot enforce.",
   "scripts": {
     "fable": "tsx src/main.ts",
+    "check": "tsx src/check.ts",
+    "test": "tsx src/config.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

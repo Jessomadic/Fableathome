@@ -16,6 +16,8 @@ import { parseArgs } from "node:util";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { loadFileConfig, resolveCaps } from "./config.js";
+import { probeAccountUsage } from "./control.js";
 
 // ---------- CLI ----------
 
@@ -23,23 +25,43 @@ const { values: flags, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     cwd: { type: "string", default: process.cwd() },
-    model: { type: "string", default: "opus" },
-    "judge-model": { type: "string", default: "opus" },
-    "max-rounds": { type: "string", default: "3" },
+    model: { type: "string" },
+    "judge-model": { type: "string" },
+    "max-rounds": { type: "string" },
     "max-cost": { type: "string" },
+    "max-tokens": { type: "string" },
+    experimental: { type: "boolean" },
+    "sub-cap-pct": { type: "string" },
+    "extra-usage-cap-pct": { type: "string" },
     "best-of": { type: "string" },
   },
 });
 
 const task = positionals.join(" ").trim();
 if (!task) {
-  console.error('usage: fable run "<task>" [--cwd path] [--best-of N] [--max-rounds 3] [--max-cost USD]');
+  console.error(
+    'usage: fable run "<task>" [--cwd path] [--best-of N] [--max-rounds 3]\n' +
+      "         [--max-cost USD] [--max-tokens N]\n" +
+      "         [--experimental --sub-cap-pct 85 --extra-usage-cap-pct 50]\n" +
+      "  Standing defaults can live in <cwd>/.fable/config.json; CLI flags override them.",
+  );
   process.exit(2);
 }
 const cwd = resolve(flags.cwd!);
-const maxRounds = parseInt(flags["max-rounds"]!, 10);
+
+// Caps: built-in default < .fable/config.json < CLI flag (see config.ts).
+const caps = resolveCaps(loadFileConfig(cwd), {
+  maxRounds: flags["max-rounds"],
+  maxCost: flags["max-cost"],
+  maxTokens: flags["max-tokens"],
+  model: flags.model,
+  judgeModel: flags["judge-model"],
+  experimental: flags.experimental,
+  subscriptionCapPct: flags["sub-cap-pct"],
+  extraUsageCapPct: flags["extra-usage-cap-pct"],
+});
+const { maxRounds, maxCostUsd, maxTokens, model, judgeModel } = caps;
 const bestOf = flags["best-of"] ? parseInt(flags["best-of"]!, 10) : 0;
-const maxCost = flags["max-cost"] ? parseFloat(flags["max-cost"]!) : Infinity;
 
 // ---------- run-log persistence (best-effort; never fails the run) ----------
 
@@ -91,19 +113,34 @@ Completion contract (enforced by an independent judge who re-runs your work):
   with the reason. Honest UNVERIFIED is acceptable; unsupported or invented
   evidence is not.`;
 
+interface SessionResult {
+  report: string;
+  costUsd: number;
+  turns: number;
+  tokens: number;
+  budgetHit: boolean;
+}
+
 async function runSession(
   prompt: string,
-  opts: { model: string; cwd: string; readOnly?: boolean },
-): Promise<{ report: string; costUsd: number; turns: number }> {
+  opts: { model: string; cwd: string; readOnly?: boolean; maxBudgetUsd?: number },
+): Promise<SessionResult> {
   let report = "";
   let costUsd = 0;
   let turns = 0;
+  let tokens = 0;
+  let budgetHit = false;
   for await (const message of query({
     prompt,
     options: {
       model: opts.model,
       cwd: opts.cwd,
       permissionMode: opts.readOnly ? "default" : "acceptEdits",
+      // Native SDK budget: aborts the session mid-run (not just between rounds)
+      // once this session's notional cost would exceed the remaining budget.
+      ...(opts.maxBudgetUsd !== undefined && Number.isFinite(opts.maxBudgetUsd)
+        ? { maxBudgetUsd: opts.maxBudgetUsd }
+        : {}),
       // Headless sessions have nobody to click "approve": the executor needs
       // Bash auto-approved or it can never run its own verification, and the
       // judge needs read-only + Bash to verify independently.
@@ -121,12 +158,19 @@ async function runSession(
       report = typeof message.result === "string" ? message.result : "";
       costUsd = message.total_cost_usd ?? 0;
       turns = message.num_turns ?? 0;
+      const u = message.usage;
+      tokens = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0);
       if (message.is_error) {
+        // Hitting the native budget is an expected stop, not a crash.
+        if (message.subtype === "error_max_budget_usd") {
+          budgetHit = true;
+          break;
+        }
         throw new Error(`session failed: ${report || "(no result text)"}`);
       }
     }
   }
-  return { report, costUsd, turns };
+  return { report, costUsd, turns, tokens, budgetHit };
 }
 
 // ---------- judge ----------
@@ -151,7 +195,12 @@ function parseVerdict(text: string): Verdict {
   return { verdict: "RETRY", feedback: `Judge output was unparseable; re-verify and report clearly. Raw: ${text.slice(0, 400)}` };
 }
 
-async function judge(taskText: string, report: string, diff: string): Promise<{ v: Verdict; costUsd: number }> {
+async function judge(
+  taskText: string,
+  report: string,
+  diff: string,
+  maxBudgetUsd?: number,
+): Promise<{ v: Verdict; costUsd: number; tokens: number }> {
   const prompt = `You are the completion judge for an autonomous coding run. Decide whether the work is DONE — done means DEMONSTRATED, not merely written.
 
 TASK GIVEN TO THE EXECUTOR:
@@ -175,30 +224,84 @@ Respond with ONLY a fenced json block:
 \`\`\`
 or {"verdict": "RETRY", ...} with what is missing and how to fix it.`;
 
-  const { report: out, costUsd } = await runSession(prompt, {
-    model: flags["judge-model"]!,
+  const { report: out, costUsd, tokens } = await runSession(prompt, {
+    model: judgeModel,
     cwd,
     readOnly: true,
+    maxBudgetUsd,
   });
-  return { v: parseVerdict(out), costUsd };
+  return { v: parseVerdict(out), costUsd, tokens };
 }
 
 // ---------- run/judge/retry loop ----------
 
+/** Stop the loop with a reason; write the summary and exit non-zero. */
+function stop(reason: string, extra: Record<string, unknown>): never {
+  console.error(`\n${reason}`);
+  persist("summary.json", JSON.stringify({ outcome: "stopped", reason, ...extra }, null, 2));
+  process.exit(1);
+}
+
+/**
+ * Decide whether the next round fits inside the caps. Robust caps ($ and
+ * tokens) are checked first; the experimental account-usage caps are checked
+ * only under --experimental and degrade to a no-op if the probe returns null.
+ */
+async function guardBeforeRound(
+  round: number,
+  spent: { cost: number; tokens: number; roundsRun: number },
+): Promise<void> {
+  if (spent.cost >= maxCostUsd) {
+    stop(`BUDGET STOP: spent $${spent.cost.toFixed(4)} >= --max-cost $${maxCostUsd.toFixed(2)} before round ${round}.`, { ...spent });
+  }
+  if (spent.tokens >= maxTokens) {
+    stop(`TOKEN STOP: used ${spent.tokens} tokens >= --max-tokens ${maxTokens} before round ${round}.`, { ...spent });
+  }
+  // Projected-cost stop: don't start a round whose expected cost (the running
+  // average so far) would push spend past the cap. This is the "how many rounds
+  // fit the budget" logic — it stops early rather than overshooting.
+  if (spent.roundsRun > 0 && Number.isFinite(maxCostUsd)) {
+    const avg = spent.cost / spent.roundsRun;
+    if (spent.cost + avg > maxCostUsd) {
+      stop(
+        `PROJECTED-BUDGET STOP: next round ~$${avg.toFixed(4)} would exceed --max-cost $${maxCostUsd.toFixed(2)} ` +
+          `(spent $${spent.cost.toFixed(4)}). Stopping before round ${round} to stay within budget.`,
+        { ...spent, projectedRound: avg },
+      );
+    }
+  }
+  if (caps.experimental) {
+    const u = await probeAccountUsage(cwd);
+    if (!u) {
+      console.log("(experimental usage probe unavailable — falling back to robust caps only)");
+      return;
+    }
+    const ex = u.extraUsage;
+    console.log(
+      `account: ${u.subscriptionType ?? "api-key"}` +
+        (u.planUtilizationPct !== null ? `, plan ${u.planUtilizationPct.toFixed(0)}% used` : "") +
+        (ex?.utilizationPct != null
+          ? `, extra-usage ${ex.utilizationPct.toFixed(1)}% (${ex.usedCredits ?? "?"}/${ex.monthlyLimit ?? "?"})`
+          : ""),
+    );
+    if (u.planUtilizationPct !== null && u.planUtilizationPct >= caps.subscriptionCapPct) {
+      stop(`SUBSCRIPTION STOP: plan usage ${u.planUtilizationPct.toFixed(0)}% >= --sub-cap-pct ${caps.subscriptionCapPct}% before round ${round}.`, { ...spent, planUtilizationPct: u.planUtilizationPct });
+    }
+    if (ex?.utilizationPct != null && ex.utilizationPct >= caps.extraUsageCapPct) {
+      stop(`EXTRA-USAGE STOP: extra-usage ${ex.utilizationPct.toFixed(1)}% of monthly limit >= --extra-usage-cap-pct ${caps.extraUsageCapPct}% before round ${round}.`, { ...spent, extraUsagePct: ex.utilizationPct });
+    }
+  }
+}
+
 async function runLoop(): Promise<void> {
   let feedback = "";
   let totalCost = 0;
+  let totalTokens = 0;
 
   for (let round = 1; round <= maxRounds; round++) {
-    // Budget guard: stop before starting a round we can't afford. A round's cost
-    // is only known after it runs, so this caps the NEXT round, not the current.
-    if (totalCost >= maxCost) {
-      console.error(`\nBUDGET STOP: spent $${totalCost.toFixed(4)} >= --max-cost $${maxCost.toFixed(2)} before round ${round}. Stopping unverified.`);
-      persist("summary.json", JSON.stringify({ outcome: "budget-stop", rounds: round - 1, totalCost, maxCost }, null, 2));
-      process.exit(1);
-    }
+    await guardBeforeRound(round, { cost: totalCost, tokens: totalTokens, roundsRun: round - 1 });
 
-    console.log(`\n=== round ${round}/${maxRounds}: executor (${flags.model}) ===`);
+    console.log(`\n=== round ${round}/${maxRounds}: executor (${model}) ===`);
     const prompt =
       task +
       EXECUTOR_CONTRACT +
@@ -206,14 +309,21 @@ async function runLoop(): Promise<void> {
         ? `\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED BY THE JUDGE. Feedback:\n${feedback}\nAddress it, verify end-to-end, and include the evidence.`
         : "");
 
-    const exec = await runSession(prompt, { model: flags.model!, cwd });
+    const remaining = Number.isFinite(maxCostUsd) ? maxCostUsd - totalCost : Infinity;
+    const exec = await runSession(prompt, { model, cwd, maxBudgetUsd: remaining });
     totalCost += exec.costUsd;
-    console.log(`executor done: ${exec.turns} turns, $${exec.costUsd.toFixed(4)}`);
+    totalTokens += exec.tokens;
+    console.log(`executor done: ${exec.turns} turns, $${exec.costUsd.toFixed(4)}, ${exec.tokens} tokens`);
+    if (exec.budgetHit) {
+      stop(`BUDGET STOP: executor hit the $${maxCostUsd.toFixed(2)} budget mid-round ${round}.`, { totalCost, totalTokens });
+    }
 
     const diff = captureDiff();
-    console.log(`\n=== round ${round}: judge (${flags["judge-model"]}) ===`);
-    const { v, costUsd } = await judge(task, exec.report, diff);
+    console.log(`\n=== round ${round}: judge (${judgeModel}) ===`);
+    const judgeRemaining = Number.isFinite(maxCostUsd) ? maxCostUsd - totalCost : Infinity;
+    const { v, costUsd, tokens } = await judge(task, exec.report, diff, judgeRemaining);
     totalCost += costUsd;
+    totalTokens += tokens;
     console.log(`judge verdict: ${v.verdict}${v.feedback ? ` — ${v.feedback}` : ""}`);
 
     persist(`round-${round}-executor.md`, exec.report);
@@ -221,17 +331,17 @@ async function runLoop(): Promise<void> {
     persist(`round-${round}-judge.json`, JSON.stringify(v, null, 2));
 
     if (v.verdict === "PASS") {
-      console.log(`\nDONE (verified) in ${round} round(s). Total cost: $${totalCost.toFixed(4)}`);
+      console.log(`\nDONE (verified) in ${round} round(s). Total: $${totalCost.toFixed(4)}, ${totalTokens} tokens.`);
       console.log(`\nExecutor's final report:\n${exec.report}`);
-      persist("summary.json", JSON.stringify({ outcome: "pass", rounds: round, totalCost }, null, 2));
+      persist("summary.json", JSON.stringify({ outcome: "pass", rounds: round, totalCost, totalTokens }, null, 2));
       return;
     }
     feedback = v.feedback;
   }
 
   console.error(`\nFAILED: judge did not pass the work within ${maxRounds} rounds. Last feedback: ${feedback}`);
-  console.error(`Total cost: $${totalCost.toFixed(4)}`);
-  persist("summary.json", JSON.stringify({ outcome: "fail", rounds: maxRounds, totalCost, lastFeedback: feedback }, null, 2));
+  console.error(`Total: $${totalCost.toFixed(4)}, ${totalTokens} tokens.`);
+  persist("summary.json", JSON.stringify({ outcome: "fail", rounds: maxRounds, totalCost, totalTokens, lastFeedback: feedback }, null, 2));
   process.exit(1);
 }
 
@@ -252,7 +362,7 @@ async function runBestOf(n: number): Promise<void> {
   let totalCost = 0;
 
   try {
-    console.log(`\n=== best-of ${n}: dispatching parallel attempts (${flags.model}) ===`);
+    console.log(`\n=== best-of ${n}: dispatching parallel attempts (${model}) ===`);
     const dirs = Array.from({ length: n }, (_, i) => join(base, `attempt-${i + 1}`));
     for (const d of dirs) {
       git(["worktree", "add", "--detach", d, "HEAD"]);
@@ -260,7 +370,15 @@ async function runBestOf(n: number): Promise<void> {
     }
 
     const results = await Promise.all(
-      dirs.map((d) => runSession(task + EXECUTOR_CONTRACT, { model: flags.model!, cwd: d })),
+      dirs.map((d) =>
+        runSession(task + EXECUTOR_CONTRACT, {
+          model,
+          cwd: d,
+          // Each parallel attempt is capped to the whole budget (they run
+          // simultaneously, so the cap can't be shared pre-hoc).
+          maxBudgetUsd: maxCostUsd,
+        }),
+      ),
     );
     results.forEach((r, i) => {
       totalCost += r.costUsd;
@@ -284,7 +402,7 @@ Respond with ONLY a fenced json block: \`\`\`json
 {"winner": <1-based attempt number>, "reason": "..."}
 \`\`\``;
     const { report: out, costUsd } = await runSession(judgePrompt, {
-      model: flags["judge-model"]!,
+      model: judgeModel,
       cwd,
       readOnly: true,
     });
