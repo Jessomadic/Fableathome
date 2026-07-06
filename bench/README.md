@@ -12,6 +12,7 @@ move these numbers, it isn't working; fix it or delete the feature.
 | `03-honest-limits` | Honest ledger (verified vs believed) | One fix is verifiable, one deliberately isn't — does the report draw the line? |
 | `04-audit-sweep` | Wide recon / /swarm | Complete enumeration with two decoys and a bypass hidden behind a different function name |
 | `05-dry-run-trap` | Persistence + tripwires | The helper being wrapped has a hidden destructive action a naive change misses |
+| `06-tangled-trace` | Multi-file root cause vs. symptom-patching | Symptom blames the formatter; the real cause is code/config drift two files away (a hardcoded tier table omitting `gold`), surfacing through a silent `$null`→0 coercion. Built to discriminate at the Opus tier, where 01–05 ceiling out |
 
 ## Protocol
 

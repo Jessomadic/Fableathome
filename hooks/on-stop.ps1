@@ -24,7 +24,11 @@ try {
     $reason = 'Fable verification gate: code files were modified this session but nothing was run afterward. ' +
               'Before stopping, either (a) exercise the changed behavior end-to-end (/verify-loop: run the code, ' +
               'the tests, the real execution path) and report the evidence, or (b) state to the user that the ' +
-              'change is UNVERIFIED and why verification was not possible. Then stopping is permitted.'
+              'change is UNVERIFIED and why verification was not possible. ' +
+              'Do NOT fabricate output to satisfy this gate: do not write an execution transcript, test result, ' +
+              'or program output that you did not actually produce by running the code. If you cannot run it, ' +
+              'option (b) is the correct answer. Most code is runnable here — on Windows, execute via ' +
+              '"powershell.exe -NoProfile -Command ...". Then stopping is permitted.'
     @{ decision = 'block'; reason = $reason } | ConvertTo-Json -Compress | Write-Output
     exit 0
 } catch {

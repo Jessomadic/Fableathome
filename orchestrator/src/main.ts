@@ -59,12 +59,18 @@ function captureDiff(dir: string = cwd): string {
 
 const EXECUTOR_CONTRACT = `
 
-Completion contract (enforced by an independent judge who reviews your work):
-- Your final message MUST include verification evidence: the exact commands
-  you ran to exercise the changed behavior end-to-end, and their observed
-  output. Claims without evidence are rejected.
-- Anything you could not verify must be explicitly labeled UNVERIFIED with
-  the reason. Honest UNVERIFIED is acceptable; unsupported claims are not.`;
+Completion contract (enforced by an independent judge who re-runs your work):
+- Actually RUN the changed behavior end-to-end before reporting. Do not hand-
+  trace logic or reason about what the code "would" print — most code here is
+  runnable, so run it. On Windows, execute through the shell with
+  \`powershell.exe -NoProfile -Command "..."\`.
+- Your final message MUST include the exact commands you ran and their REAL
+  observed output. Never present constructed, hypothetical, or hand-traced
+  output as if a real run produced it — the judge re-executes and will catch
+  it. A fabricated verification transcript is the worst possible outcome.
+- Anything you genuinely could not run must be explicitly labeled UNVERIFIED
+  with the reason. Honest UNVERIFIED is acceptable; unsupported or invented
+  evidence is not.`;
 
 async function runSession(
   prompt: string,

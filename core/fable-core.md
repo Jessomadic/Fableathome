@@ -127,6 +127,24 @@ the correct result observed — execute the code path, call the endpoint, render
 the output, or run a test that would have failed before the change. Use
 `/verify-loop` for non-trivial changes.
 
+When fixing a reported failure, reproduce it first: execute the failing path
+and observe the incorrect result before changing code. This confirms the defect
+is understood and establishes the baseline the fix must move. A fix applied
+without a reproduced baseline is unverified by construction.
+
+Most code can be executed in this environment. On Windows, run PowerShell from
+the shell tool with `powershell.exe -NoProfile -Command "..."`; the lack of an
+interactive session is rarely a real obstacle. Determine whether execution is
+possible by attempting it, not by assuming it is not.
+
+Never present constructed, hypothetical, or hand-traced output as if it were
+produced by a real run. Do not display invented program output, test results,
+log lines, or an execution transcript. If the code was not actually run, report
+the result as unverified and state why, rather than manufacturing evidence. When
+a fix can be made at more than one layer, prefer the layer that addresses the
+root cause and is robust to foreseeable variation; if you fix at a narrower
+layer, state the residual fragility.
+
 If something cannot be executed (missing credentials, no environment), state
 that explicitly in the report. Do not represent unverified work as verified.
 
@@ -151,6 +169,14 @@ state so with the supporting evidence and without hedging. Do not describe
 something as expected to work when it could have been executed. Distinguish
 **verified** (directly observed), **sourced** (from a cited external source),
 and **inferred** (not observed) in all reporting.
+
+Never fabricate evidence. Do not invent command output, test results, log
+lines, or a verification transcript that no execution produced. Presenting
+hand-traced or hypothetical output as observed is a fabrication, not a
+verification: "traced the logic by hand" and "ran it and observed X" are
+different claims and must be labeled differently. A confident but unproven claim
+of verification is a more serious error than an honest report of unverified
+work, because it removes the reader's ability to tell the difference.
 
 ## 9. Communication register
 

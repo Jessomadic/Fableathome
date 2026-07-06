@@ -149,5 +149,17 @@ out.
 
 - Cross-platform hooks (bash + `install.sh`) — today the hooks and installer
   are Windows/PowerShell only.
-- Broaden the bench beyond n=1: more tasks, stronger models, interactive and
-  orchestrator-loop A/B runs.
+- Broaden the bench beyond n=1: the three-model matrix (Haiku/Sonnet/Opus) and a
+  harder multi-file task (`06-tangled-trace`) are in, but per-cell runs are still
+  n=1–4; raise n on the discriminating tasks and add variants that aren't
+  ceiling'd at the Opus tier (see `bench/results.md`).
+- ~~A/B the orchestrator judge against a bare session on the fabrication case.~~
+  **Done (2026-07-06, see `bench/results.md`):** on task 02, bare single-shot Haiku
+  shipped an unverified, fragile fix (~1/10); the orchestrator loop — even with a
+  *Haiku* judge — caught the fabrication (the judge re-runs the script, observes 2
+  attempts not the claimed 10) and drove a verified robust `[int]` fix (8/10). The
+  judge doesn't need to be smart, only to run the code. Hardening the executor
+  contract cut it from 3 rounds to 1 at ⅓ the cost. This is the durable fix for
+  weak-model fabrication; prompt hardening only removes the incentive.
+- Raise n on the enforcement A/B and regression-test the hardened executor contract
+  on Sonnet/Opus executors (expected no downside — they already run the code).

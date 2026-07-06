@@ -64,6 +64,7 @@ Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Edit'; tool_i
 Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Bash'; tool_input = @{ command = 'ls -la' } } | ConvertTo-Json -Compress) | Out-Null
 $r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $false } | ConvertTo-Json -Compress)
 Assert ($r.out -match '"decision":"block"') 'stop-gate still fires after edit + only ls (ls does not count)'
+Assert ($r.out -match '(?i)fabricate') 'stop-gate reason forbids fabricating output to satisfy it'
 
 # real verification (a test run) DOES satisfy it
 Remove-Item $statePath -Force -ErrorAction SilentlyContinue
