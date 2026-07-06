@@ -27,15 +27,27 @@ Auth resolves the same way Claude Code does (logged-in credentials or
 # run/judge/retry loop (default 3 rounds)
 npm run fable -- "fix the retry logic in fetch.ps1" --cwd C:\path\to\project
 
-# knobs
+# knobs (defaults: --model opus, --judge-model opus, --max-rounds 3)
 npm run fable -- "<task>" --model opus --judge-model opus --max-rounds 3
+
+# budget cap: stop before starting a round once spend reaches the limit
+npm run fable -- "<task>" --max-cost 2.50
 
 # best-of N: parallel attempts in isolated git worktrees, judge picks,
 # winner's diff is applied (requires a clean working tree)
 npm run fable -- "<task>" --best-of 3
 ```
 
-Exit codes: `0` judge passed the work, `1` failed within max rounds, `2` usage error.
+For a cheap-executor / cheap-judge run (the value pick per `bench/results.md`),
+pass `--model haiku --judge-model haiku`; the judge catches fabrication by
+re-running the code, so it does not need to be the strongest model.
+
+Every run writes artifacts to `<cwd>/.fable/runs/<timestamp>/` — per-round
+executor report, diff, and judge verdict, plus a `summary.json`. The path is
+printed at the start of the run.
+
+Exit codes: `0` judge passed the work, `1` failed within max rounds (or budget
+stop), `2` usage error.
 
 ## Design notes
 

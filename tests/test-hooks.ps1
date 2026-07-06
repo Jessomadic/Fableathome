@@ -73,6 +73,24 @@ Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Bash'; tool_i
 $r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $false } | ConvertTo-Json -Compress)
 Assert ([string]::IsNullOrWhiteSpace($r.out)) 'stop-gate satisfied after edit + real test run'
 
+# --- stop-gate is per-edit-batch, not once-per-session, and never loops ---
+Remove-Item $statePath -Force -ErrorAction SilentlyContinue
+Invoke-Hook 'on-post-tool.ps1' (@{ session_id = $sid; tool_name = 'Edit'; tool_input = @{ file_path = 'D:\x\app.ps1' } } | ConvertTo-Json -Compress) | Out-Null
+$r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $false } | ConvertTo-Json -Compress)
+Assert ($r.out -match '"decision":"block"') 'stop-gate blocks the first unverified edit batch'
+# Same batch, continuation stop (stop_hook_active): always allowed, no loop.
+$r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $true } | ConvertTo-Json -Compress)
+Assert ([string]::IsNullOrWhiteSpace($r.out)) 'stop-gate never loops while continuing (stop_hook_active)'
+# Same batch, fresh stop, no new edit: still allowed (blocked_edit guard).
+$r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $false } | ConvertTo-Json -Compress)
+Assert ([string]::IsNullOrWhiteSpace($r.out)) 'stop-gate does not re-block the same edit batch'
+# A NEW unverified edit (later timestamp) re-arms the gate.
+$st = Get-Content $statePath -Raw | ConvertFrom-Json
+$st.last_edit = [long]$st.last_edit + 10
+$st | ConvertTo-Json -Compress | Set-Content $statePath -Encoding utf8
+$r = Invoke-Hook 'on-stop.ps1' (@{ session_id = $sid; stop_hook_active = $false } | ConvertTo-Json -Compress)
+Assert ($r.out -match '"decision":"block"') 'stop-gate re-blocks a NEW unverified edit batch'
+
 # --- fail-open on garbage stdin (every hook) ---
 foreach ($h in @('on-session-start.ps1','on-prompt-submit.ps1','on-pre-tool.ps1','on-post-tool.ps1','on-stop.ps1','on-pre-compact.ps1')) {
     $r = Invoke-Hook $h 'not json {'

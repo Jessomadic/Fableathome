@@ -13,7 +13,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -26,18 +26,37 @@ const { values: flags, positionals } = parseArgs({
     model: { type: "string", default: "opus" },
     "judge-model": { type: "string", default: "opus" },
     "max-rounds": { type: "string", default: "3" },
+    "max-cost": { type: "string" },
     "best-of": { type: "string" },
   },
 });
 
 const task = positionals.join(" ").trim();
 if (!task) {
-  console.error('usage: fable run "<task>" [--cwd path] [--best-of N] [--max-rounds 3]');
+  console.error('usage: fable run "<task>" [--cwd path] [--best-of N] [--max-rounds 3] [--max-cost USD]');
   process.exit(2);
 }
 const cwd = resolve(flags.cwd!);
 const maxRounds = parseInt(flags["max-rounds"]!, 10);
 const bestOf = flags["best-of"] ? parseInt(flags["best-of"]!, 10) : 0;
+const maxCost = flags["max-cost"] ? parseFloat(flags["max-cost"]!) : Infinity;
+
+// ---------- run-log persistence (best-effort; never fails the run) ----------
+
+const runDir = join(cwd, ".fable", "runs", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19));
+let runDirReady = false;
+function persist(name: string, content: string): void {
+  try {
+    if (!runDirReady) {
+      mkdirSync(runDir, { recursive: true });
+      runDirReady = true;
+      console.log(`run log: ${runDir}`);
+    }
+    writeFileSync(join(runDir, name), content, "utf8");
+  } catch {
+    /* logging must never break the orchestration */
+  }
+}
 
 // ---------- git helpers ----------
 
@@ -171,6 +190,14 @@ async function runLoop(): Promise<void> {
   let totalCost = 0;
 
   for (let round = 1; round <= maxRounds; round++) {
+    // Budget guard: stop before starting a round we can't afford. A round's cost
+    // is only known after it runs, so this caps the NEXT round, not the current.
+    if (totalCost >= maxCost) {
+      console.error(`\nBUDGET STOP: spent $${totalCost.toFixed(4)} >= --max-cost $${maxCost.toFixed(2)} before round ${round}. Stopping unverified.`);
+      persist("summary.json", JSON.stringify({ outcome: "budget-stop", rounds: round - 1, totalCost, maxCost }, null, 2));
+      process.exit(1);
+    }
+
     console.log(`\n=== round ${round}/${maxRounds}: executor (${flags.model}) ===`);
     const prompt =
       task +
@@ -189,9 +216,14 @@ async function runLoop(): Promise<void> {
     totalCost += costUsd;
     console.log(`judge verdict: ${v.verdict}${v.feedback ? ` — ${v.feedback}` : ""}`);
 
+    persist(`round-${round}-executor.md`, exec.report);
+    persist(`round-${round}.diff`, diff);
+    persist(`round-${round}-judge.json`, JSON.stringify(v, null, 2));
+
     if (v.verdict === "PASS") {
       console.log(`\nDONE (verified) in ${round} round(s). Total cost: $${totalCost.toFixed(4)}`);
       console.log(`\nExecutor's final report:\n${exec.report}`);
+      persist("summary.json", JSON.stringify({ outcome: "pass", rounds: round, totalCost }, null, 2));
       return;
     }
     feedback = v.feedback;
@@ -199,6 +231,7 @@ async function runLoop(): Promise<void> {
 
   console.error(`\nFAILED: judge did not pass the work within ${maxRounds} rounds. Last feedback: ${feedback}`);
   console.error(`Total cost: $${totalCost.toFixed(4)}`);
+  persist("summary.json", JSON.stringify({ outcome: "fail", rounds: maxRounds, totalCost, lastFeedback: feedback }, null, 2));
   process.exit(1);
 }
 
@@ -257,11 +290,29 @@ Respond with ONLY a fenced json block: \`\`\`json
     });
     totalCost += costUsd;
 
+    attempts.forEach((a, i) => {
+      persist(`attempt-${i + 1}-report.md`, a.report);
+      persist(`attempt-${i + 1}.diff`, a.diff);
+    });
+
+    // Parse the winner pick defensively: a malformed judge JSON must not throw
+    // away N paid attempts. Fall back to attempt 1 (mirrors parseVerdict's
+    // never-crash contract).
     const fenced = out.match(/```json\s*([\s\S]*?)```/);
-    const pick = JSON.parse(fenced ? fenced[1] : out.slice(out.lastIndexOf("{")));
+    let pick: { winner: number; reason: string };
+    try {
+      const raw = JSON.parse(fenced ? fenced[1] : out.slice(out.lastIndexOf("{")));
+      const w = Number(raw.winner);
+      if (!Number.isInteger(w) || w < 1 || w > attempts.length) throw new Error("out of range");
+      pick = { winner: w, reason: String(raw.reason ?? "") };
+    } catch {
+      console.error("judge winner pick was unparseable or out of range; defaulting to attempt 1.");
+      pick = { winner: 1, reason: "judge output unparseable; defaulted to the first attempt" };
+    }
     const winner = attempts[pick.winner - 1];
-    if (!winner) throw new Error(`judge picked invalid winner: ${JSON.stringify(pick)}`);
+    if (!winner) throw new Error(`no attempts to choose from`);
     console.log(`winner: attempt ${pick.winner} — ${pick.reason}`);
+    persist("summary.json", JSON.stringify({ outcome: "best-of", n, winner: pick.winner, reason: pick.reason, totalCost }, null, 2));
 
     if (winner.diff.trim() && !winner.diff.startsWith("(no git")) {
       execFileSync("git", ["apply", "--whitespace=nowarn"], { cwd, input: winner.diff });

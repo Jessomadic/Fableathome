@@ -7,7 +7,7 @@ try {
 
     $state = Read-FableState -SessionId $evt.session_id
     if ($null -eq $state) {
-        $state = [pscustomobject]@{ last_edit = 0; last_bash = 0; blocked_once = $false }
+        $state = [pscustomobject]@{ last_edit = 0; last_bash = 0; blocked_edit = 0 }
     }
 
     if ($evt.tool_name -eq 'Bash') {

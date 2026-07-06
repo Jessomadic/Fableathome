@@ -1,8 +1,9 @@
-# Stop hook: the verification gate. If code files were edited this session
-# and nothing was run afterward, block the stop ONCE with a demand to verify
-# (or explicitly report unverified). Block-once is guaranteed two ways:
-# stop_hook_active from Claude Code, plus our own blocked_once flag - so the
-# gate can never loop a session, regardless of harness semantics.
+# Stop hook: the verification gate. If code files were edited and nothing was
+# run afterward, block the stop with a demand to verify (or explicitly report
+# unverified). Blocks once PER UNVERIFIED EDIT-BATCH: we record the timestamp of
+# the edit we blocked for (blocked_edit); the same batch is never re-blocked (so
+# the gate can never loop), but a NEWER unverified edit re-arms it. stop_hook_active
+# from Claude Code is the belt-and-suspenders immediate-loop guard.
 try {
     . (Join-Path $PSScriptRoot 'fable-common.ps1')
     $evt = Read-HookEvent
@@ -13,12 +14,17 @@ try {
 
     $state = Read-FableState -SessionId $evt.session_id
     if ($null -eq $state) { exit 0 }
-    if ($state.blocked_once) { exit 0 }
     if (-not $state.last_edit -or $state.last_edit -eq 0) { exit 0 }
     if ($state.last_bash -ge $state.last_edit) { exit 0 }
 
-    # Edits happened, nothing ran afterward, first offense: block.
-    $state.blocked_once = $true
+    # Unverified edits exist. Block once per edit-batch: if we already blocked for
+    # this exact edit timestamp, let the stop through (no loop). A newer edit
+    # (later last_edit) re-arms the gate.
+    $blockedEdit = if ($state.blocked_edit) { [long]$state.blocked_edit } else { 0 }
+    if ($blockedEdit -ge [long]$state.last_edit) { exit 0 }
+
+    # Edits happened, nothing ran afterward, this batch not yet gated: block.
+    $state | Add-Member -NotePropertyName blocked_edit -NotePropertyValue ([long]$state.last_edit) -Force
     Write-FableState -SessionId $evt.session_id -State $state
 
     $reason = 'Fable verification gate: code files were modified this session but nothing was run afterward. ' +
