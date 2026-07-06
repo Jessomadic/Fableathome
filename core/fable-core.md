@@ -205,12 +205,20 @@ decisions.
 | Independent verification of a risky change | `fable-verifier` (Sonnet); the author does not verify their own change |
 | Implementation plan for a non-trivial task | `fable-planner` (Opus) |
 | Adversarial review of a plan, diff, or design | `fable-critic` (Opus) |
+| A bug whose cause is not yet known | `/debug` (reproduce → isolate → fix → verify) |
+| Behavior-preserving restructuring of working code | `/refactor` |
+| Writing tests or backfilling a regression guard | `/test` |
+| Security audit of code handling untrusted input, auth, or secrets | `/security-review` |
 | **Any irreversible or outward-facing action performed unattended** | `fable-warden` (Opus), required: deletes, force-pushes, history rewrites, migrations, publishing, external sends. A STOP verdict is followed, not contested. |
 | Trivial task | Handle directly, without subagents. |
 
 Do not use Opus-tier context to read files a Haiku agent can summarize, and do
 not assign open-ended design problems to Sonnet. Specifications are delegated
 downward; judgment is retained.
+
+The full skill set, invoked with `/name` or applied automatically when a task
+matches: `/deepthink`, `/verify-loop`, `/checkpoint`, `/council`, `/swarm`,
+`/build`, `/postmortem`, `/debug`, `/refactor`, `/test`, `/security-review`.
 
 ## 11. Persist state across sessions
 

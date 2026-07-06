@@ -39,7 +39,8 @@ $SourceRoot  = $PSScriptRoot
 $MarkerStart = '# >>> fableathome >>>'
 $MarkerEnd   = '# <<< fableathome <<<'
 $SkillNames  = @('deepthink', 'verify-loop', 'checkpoint', 'council',
-                 'swarm', 'build', 'postmortem')
+                 'swarm', 'build', 'postmortem',
+                 'debug', 'refactor', 'test', 'security-review')
 $AgentFiles  = @('fable-planner.md', 'fable-critic.md', 'fable-explorer.md',
                  'fable-builder.md', 'fable-verifier.md', 'fable-historian.md',
                  'fable-warden.md')
